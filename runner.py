@@ -36,7 +36,7 @@ def runner(parent, params, test_flag=False) -> None:
 
         save_batch = config['training_method_cfg']['test_cfg']['save_batch']
         if -1 in save_batch:
-            save_batch = {range(num_batches)}
+            save_batch = range(num_batches)
         save_batch_cpy = save_batch
         for batch_idx in save_batch_cpy:
             if batch_idx >= num_batches:
