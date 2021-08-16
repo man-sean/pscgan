@@ -33,8 +33,10 @@ class GAN(pl.LightningModule):
         self.collages = None
         self.ours_s_fids = None
         self.ours_a_fids = None
+        self.orig_fids = None
         self.psnr_for_ours_a_fid = None
         self.psnr_for_ours_s_fid = None
+        self.psnr_for_orig = None
         self.collage_metric = None
         self.val_path = None
         self.m_real = None
@@ -116,6 +118,9 @@ class GAN(pl.LightningModule):
                                                     for _ in self.noise_std_traversal]).to(self.device)
             self.psnr_for_ours_s_fid = torch.nn.ModuleList([PSNR(1)
                                                             for _ in self.noise_std_traversal]).to(self.device)
+            self.orig_fids = torch.nn.ModuleList([utils.FID(self.num_fid_evals, self.m_real, self.s_real, model)
+                                                    for _ in self.noise_std_traversal]).to(self.device)
+            self.psnr_for_orig = torch.nn.ModuleList([PSNR(1) for _ in self.noise_std_traversal]).to(self.device)
         if self.test_cfg['denoiser_criteria']:
             avg_kernel = 1/(3*15*15) * torch.ones(1, 3, 15, 15).to(self.device)
             self.denoiser_criteria = utils.DenoiserCriteria(avg_kernel).to(self.device)
@@ -145,9 +150,12 @@ class GAN(pl.LightningModule):
                     out = self.forward_with_divisor(y_expanded, self.divide_expanded_forward_pass,
                                                     noise_stds=noise_stds)
                     out_reshaped = utils.restore_expanded_4d_batch(out, expansion)
+                    y_reshaped = utils.restore_expanded_4d_batch(y_expanded, expansion)
                     if self.test_cfg['fid_and_psnr']:
                         self.ours_s_fids[i].update(out_reshaped[:self.num_fid_evals])
                         self.psnr_for_ours_s_fid[i].update(x_expanded, out)
+                        self.orig_fids[i].update(y_reshaped[:self.num_fid_evals])
+                        self.psnr_for_orig[i].update(x_expanded, y_expanded)
                     if save_collage:
                         self.collages[idx].update("fake_z" + str(noise_stds), out_reshaped[:8])
                         if expansion == 64 and noise_stds == 1:
@@ -179,11 +187,17 @@ class GAN(pl.LightningModule):
         if self.test_cfg['fid_and_psnr']:
             for i, noise_stds in enumerate(self.noise_std_traversal):
                 ours_s_fid_scores = self.ours_s_fids[i].compute()
+                orig_fid_scores = self.orig_fids[i].compute()
                 self.log("Sigma_z=" + str(noise_stds) + "_FID_mean", torch.mean(ours_s_fid_scores), prog_bar=True,
                          logger=True)
                 self.log("Sigma_z=" + str(noise_stds) + "_FID_std", torch.std(ours_s_fid_scores), prog_bar=True,
                          logger=True)
                 self.log("Sigma_z=" + str(noise_stds) + "_PSNR", self.psnr_for_ours_s_fid[i].compute(), prog_bar=True,
+                         logger=True)
+                self.log("Original_PSNR", self.psnr_for_orig[i].compute(), prog_bar=True, logger=True)
+                self.log("Original_FID_mean", torch.mean(orig_fid_scores), prog_bar=True,
+                         logger=True)
+                self.log("Original_FID_std", torch.std(orig_fid_scores), prog_bar=True,
                          logger=True)
             for i, num_expansions in enumerate(self.num_avg_samples_traversal):
                 self.log("N=" + str(num_expansions) + "_FID", self.ours_a_fids[i].compute(), prog_bar=True, logger=True)
