@@ -70,6 +70,10 @@ def runner(parent, params, test_flag=False) -> None:
 
     denoiser.val_path = results_path
     denoiser.test_path = os.path.join(results_path, datetime.now().strftime("%d-%m-%Y_%I-%M-%S_%p"))
+
+    print(f"Noise STD: {config['dataset_cfg']['noise_std_dev']}")
+    print(f"JPEG QF: {config['dataset_cfg']['jpeg_qf']}")
+
     if test_flag:
         trainer.test(denoiser, datamodule=datamodule)
     else:

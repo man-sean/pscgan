@@ -75,6 +75,8 @@ def add_base_args(parent, **kwargs) -> argparse.ArgumentParser:
     arg_parser.add_argument("--noise_std", help="The standard deviation of the additive white Gaussian noise "
                                                 "contamination.",
                             type=int, required='--config' not in sys.argv)
+    arg_parser.add_argument("--jpeg_qf", help="The JPEG quality factor for compression.",
+                            type=int, required='--config' not in sys.argv)
     return arg_parser
 
 
@@ -171,6 +173,8 @@ def override_config(arg_parser, params, test_flag):
     output_dir = os.path.dirname(params.config)
     if '--noise_std' in sys.argv:
         config['dataset_cfg']['noise_std_dev'] = params.noise_std
+    if '--jpeg_qf' in sys.argv:
+        config['dataset_cfg']['jpeg_qf'] = params.jpeg_qf
     if '--checkpoint' in sys.argv:
         config['training_checkpoint_path'] = params.checkpoint
     if '--train_set' in sys.argv:
