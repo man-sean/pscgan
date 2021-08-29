@@ -52,6 +52,8 @@ def runner(parent, params, test_flag=False) -> None:
     for callback in config['callbacks']:
         callbacks.append(cb_fac[callback](config))
 
+    config['training_method_cfg']['jpeg_qf'] = config['dataset_cfg']['jpeg_qf']
+
     denoiser = tm_fac[config['training_method']](config['training_method_cfg'])
     if config['training_checkpoint_path'] is not None:
         denoiser = tm_fac[config['training_method']].load_from_checkpoint(config['training_checkpoint_path'],
