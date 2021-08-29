@@ -1,9 +1,10 @@
 import os.path
 
 import torch
+from torch import sqrt
 from torch.nn.functional import interpolate
-from torchjpeg.dct import images_to_batch, batch_to_images, Stats, to_rgb
-from torchjpeg.quantization import quantize_multichannel, dequantize_multichannel, ijg, dequantize
+from torchjpeg.dct import images_to_batch, batch_to_images, to_rgb
+from torchjpeg.quantization import quantize_multichannel, ijg, dequantize
 
 from pytorch_lightning.metrics import MeanSquaredError as MSE
 from pytorch_lightning.metrics import PSNR
@@ -44,7 +45,7 @@ class GANWithPosteriorTest(GAN):
         return spatial
 
     def save_batch(self, y, y_hat, idx):
-        save_image(torch.cat((y, y_hat), dim=-1), os.path.join(self.test_path, f"recompress_{idx}.png"))
+        save_image(torch.cat((y, y_hat), dim=-2), os.path.join(self.test_path, f"recompress_{idx}.png"))
 
     def test_step(self, batch, batch_idx):
         x, y = self.batch_postprocess(batch)
@@ -54,7 +55,7 @@ class GANWithPosteriorTest(GAN):
             # recompress y
             y_hat = self.compress_batch(x_hat)
             # update metrics
-            self.degradation_mse.update(y_hat, y)
+            self.degradation_mse.update(y_hat * 255, y * 255)
             self.degradation_psnr.update(y_hat, y)
             # save random batch
             if batch_idx in self.test_cfg['save_batch']:
@@ -63,4 +64,5 @@ class GANWithPosteriorTest(GAN):
 
     def test_epoch_end(self, outputs):
         self.log("Test set recompression MSE", self.degradation_mse.compute(), prog_bar=True, logger=True)
+        self.log("Test set recompression RMSE", sqrt(self.degradation_mse.compute()), prog_bar=True, logger=True)
         self.log("Test set recompression PSNR", self.degradation_psnr.compute(), prog_bar=True, logger=True)
