@@ -57,7 +57,7 @@ class GANWithPosteriorTest(GAN):
             # update metrics
             self.degradation_mse.update(y_hat * 255, y * 255)
             self.degradation_psnr.update(y_hat, y)
-            # save random batch
+            # save requested batches
             if batch_idx in self.test_cfg['save_batch']:
                 mkdir(self.test_path, remove=False)
                 self.save_batch(y, y_hat, batch_idx)
